@@ -21,6 +21,7 @@ const run = async () => {
     try {
         const usersCollection = client.db("bdSeller").collection("users");
         const productsCollection = client.db("bdSeller").collection("products");
+        const productsCategoryCollection = client.db("bdSeller").collection("categories");
 
         // get all products
         app.get("/products", async (req, res) => {
@@ -80,6 +81,63 @@ const run = async () => {
                     query
                 );
                 res.status(200).json(removedProduct);
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        });
+
+        // get all categories
+        app.get("/categories", async (req, res) => {
+            const query = {};
+            const categories = await productsCategoryCollection.find(query).toArray();
+            console.log(categories)
+            res.status(200).send(categories);
+        });
+
+        // create new category
+        app.post("/categories", async (req, res) => {
+            const categoryData = {
+               ...req.body,
+                productCreated: Date.now(),
+            };
+            const product = await productsCategoryCollection.insertOne(categoryData);
+            res.status(200).send(product);
+        });
+
+        // update category by categoryId
+        app.patch("/categories/:categoryId", async (req, res) => {
+            try {
+                const updatedCategoryData = req.body;
+
+                const query = {
+                    _id: ObjectId(req.params.categoryId),
+                };
+                const updateDocument = {
+                    $set: {
+                        categoryName: updatedCategoryData,
+                    },
+                };
+
+                const updatedCategory = await productsCategoryCollection.updateOne(
+                    query,
+                    updateDocument
+                );
+                res.status(200).send(updatedCategory);
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        });
+
+        // delete category by categoryId
+        app.delete("/categories/:categoryId", async (req, res) => {
+            try {
+                const query = {
+                    _id: ObjectId(req.params.categoryId),
+                };
+                const removedCategory = await productsCategoryCollection.deleteOne(
+                    query
+                );
+                res.status(200).json(removedCategory);
             } catch (error) {
                 res.status(500).send({ message: error.message });
             }
