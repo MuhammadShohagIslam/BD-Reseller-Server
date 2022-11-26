@@ -24,9 +24,17 @@ const run = async () => {
 
         // get all products
         app.get("/products", async (req, res) => {
+            const page = parseInt(req.query.page);
+            const size = parseInt(req.query.size);
             const query = {};
-            const products = await productsCollection.find(query).toArray();
-            res.status(200).send(products);
+            const productsCursor = productsCollection.find(query);
+            const products = await productsCursor
+                .skip(page * size)
+                .limit(size)
+                .toArray();
+            const totalProduct =
+                await productsCollection.estimatedDocumentCount();
+            res.status(200).send({ totalProduct, products });
         });
         // create new products
         app.post("/products", async (req, res) => {
@@ -38,17 +46,17 @@ const run = async () => {
             res.status(200).send(product);
         });
 
-        // update product
+        // update product by productId
         app.patch("/products/:productId", async (req, res) => {
             try {
-                const updatedProductDate = req.body;
+                const updatedProductData = req.body.updatedData;
 
                 const query = {
                     _id: ObjectId(req.params.productId),
                 };
                 const updateDocument = {
                     $set: {
-                        ...updatedProductDate,
+                        ...updatedProductData,
                     },
                 };
 
@@ -56,7 +64,22 @@ const run = async () => {
                     query,
                     updateDocument
                 );
-                res.status(200).json(updatedProduct);
+                res.status(200).send(updatedProduct);
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        });
+
+        // delete product by productId
+        app.delete("/products/:productId", async (req, res) => {
+            try {
+                const query = {
+                    _id: ObjectId(req.params.productId),
+                };
+                const removedProduct = await productsCollection.deleteOne(
+                    query
+                );
+                res.status(200).json(removedProduct);
             } catch (error) {
                 res.status(500).send({ message: error.message });
             }
