@@ -24,7 +24,17 @@ const run = async () => {
         const usersCollection = client
             .db("bdSeller")
             .collection("users");
+        const productsCollection = client
+            .db("bdSeller")
+            .collection("products");
 
+       
+        // create new products
+        app.post("/products", async (req, res)=>{
+            const productsData = req.body;
+            const products = await productsCollection.insertOne(productsData);
+            res.status(200).send(products);
+        })
        
        
     } finally {
