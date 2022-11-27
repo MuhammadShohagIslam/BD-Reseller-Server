@@ -60,11 +60,15 @@ const run = async () => {
         app.post("/createJwtToken", (req, res) => {
             try {
                 const userData = {
-                    ...req.body
+                    ...req.body,
                 };
-                const token = jwt.sign(userData, process.env.ACCESS_TOKEN_SCREAT, {
-                    expiresIn: "14d",
-                });
+                const token = jwt.sign(
+                    userData,
+                    process.env.ACCESS_TOKEN_SCREAT,
+                    {
+                        expiresIn: "14d",
+                    }
+                );
                 res.status(200).json({ token });
             } catch (error) {
                 res.status(500).send({ message: error.message });
@@ -72,19 +76,52 @@ const run = async () => {
         });
 
         // create new user
-        app.post("/users",async (req, res) => {
+        app.post("/users", async (req, res) => {
             try {
                 const userData = {
-                    ...req.body
+                    ...req.body,
                 };
-                console.log(userData)
+                console.log(userData);
                 const newUser = await usersCollection.insertOne(userData);
                 res.status(200).send(newUser);
-
             } catch (error) {
                 res.status(500).send({ message: error.message });
             }
-        })
+        });
+
+        // get all users by role
+        app.get("/users", async (req, res) => {
+            let query = {};
+            if (req.query.role === "user") {
+                query.role = req.query.role;
+            }
+            if (req.query.role === "admin") {
+                query.role = req.query.role;
+            }
+            if (req.query.role === "seller") {
+                query.role = req.query.role;
+            }
+            const users = await usersCollection.find(query).toArray();
+            console.log(users);
+            res.status(200).send(users);
+        });
+
+        // remove users by userEmail
+        app.delete("/users", async (req, res) => {
+            try {
+                if (req.query.email) {
+                    const query = {
+                        email: req.query.email,
+                    };
+                    const removedUser = await usersCollection.deleteOne(
+                        query
+                    );
+                    res.status(200).json(removedUser);
+                }
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        });
 
         // get all products
         app.get("/products", async (req, res) => {
@@ -231,9 +268,11 @@ const run = async () => {
                     userName,
                     userEmail,
                 };
-                const wishLists = await wishListCollection.find(query).toArray();
+                const wishLists = await wishListCollection
+                    .find(query)
+                    .toArray();
                 res.status(200).send(wishLists);
-            } 
+            }
         });
 
         // create new wish-list product
