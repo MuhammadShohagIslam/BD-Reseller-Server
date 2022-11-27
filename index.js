@@ -1,6 +1,7 @@
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const express = require("express");
 const cors = require("cors");
+const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
 const app = express();
@@ -16,6 +17,33 @@ const client = new MongoClient(uri, {
     useUnifiedTopology: true,
     serverApi: ServerApiVersion.v1,
 });
+// verify user by JWT
+const verifyJWT = (req, res, next) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+            return res.status(401).send({ message: "unauthorize access" });
+        }
+
+        const token = authHeader.split(" ")[1];
+
+        jwt.verify(
+            token,
+            process.env.ACCESS_TOKEN_SCREAT,
+            function (err, decoded) {
+                if (err) {
+                    return res
+                        .status(403)
+                        .send({ message: "Forbidden Access" });
+                }
+                req.decoded = decoded;
+                next();
+            }
+        );
+    } catch (error) {
+        res.status(500).send({ message: error.message });
+    }
+};
 
 const run = async () => {
     try {
@@ -28,13 +56,42 @@ const run = async () => {
             .db("bdSeller")
             .collection("wishLists");
 
+        // create token
+        app.post("/createJwtToken", (req, res) => {
+            try {
+                const userData = {
+                    ...req.body
+                };
+                const token = jwt.sign(userData, process.env.ACCESS_TOKEN_SCREAT, {
+                    expiresIn: "14d",
+                });
+                res.status(200).json({ token });
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        });
+
+        // create new user
+        app.post("/users",async (req, res) => {
+            try {
+                const userData = {
+                    ...req.body
+                };
+                console.log(userData)
+                const newUser = await usersCollection.insertOne(userData);
+                res.status(200).send(newUser);
+
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        })
+
         // get all products
         app.get("/products", async (req, res) => {
             const page = parseInt(req.query.page);
             const size = parseInt(req.query.size);
             let query = {};
             if (req.query.categoryName !== "undefined") {
-                console.log(req.query.categoryName, "q");
                 query.productCategory = req.query.categoryName;
             }
             const productsCursor = productsCollection.find(query);
@@ -167,10 +224,16 @@ const run = async () => {
 
         // get all wish-list products
         app.get("/wishLists", async (req, res) => {
-            const query = {};
-            const wishLists = await wishListCollection.find(query).toArray();
-            console.log(wishLists);
-            res.status(200).send(wishLists);
+            const userName = req.query.userName;
+            const userEmail = req.query.userEmail;
+            if (userName || userEmail) {
+                const query = {
+                    userName,
+                    userEmail,
+                };
+                const wishLists = await wishListCollection.find(query).toArray();
+                res.status(200).send(wishLists);
+            } 
         });
 
         // create new wish-list product
@@ -189,10 +252,10 @@ const run = async () => {
                 const query = {
                     productId: req.params.productId,
                 };
-                const removedWishList =
-                    await wishListCollection.deleteOne(query);
+                const removedWishList = await wishListCollection.deleteOne(
+                    query
+                );
                 res.status(200).json(removedWishList);
-
             } catch (error) {
                 res.status(500).send({ message: error.message });
             }
