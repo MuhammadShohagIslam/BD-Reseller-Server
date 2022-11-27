@@ -1,6 +1,7 @@
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const express = require("express");
 const cors = require("cors");
+const { query } = require("express");
 require("dotenv").config();
 
 const app = express();
@@ -27,7 +28,12 @@ const run = async () => {
         app.get("/products", async (req, res) => {
             const page = parseInt(req.query.page);
             const size = parseInt(req.query.size);
-            const query = {};
+            let query = {};
+            if(req.query.categoryName !== "undefined" ){
+                console.log(req.query.categoryName, "q")
+                query.productCategory = req.query.categoryName
+            }
+            console.log(req.query, query);
             const productsCursor = productsCollection.find(query);
             const products = await productsCursor
                 .skip(page * size)
@@ -37,6 +43,22 @@ const run = async () => {
                 await productsCollection.estimatedDocumentCount();
             res.status(200).send({ totalProduct, products });
         });
+
+         // get product by productId
+         app.get("/products/:productId", async (req, res) => {
+            try {
+                const query = {
+                    _id: ObjectId(req.params.productId),
+                };
+                const product = await productsCollection.findOne(
+                    query
+                );
+                res.status(200).send(product);
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        });
+
         // create new products
         app.post("/products", async (req, res) => {
             const productsData = {
@@ -50,22 +72,23 @@ const run = async () => {
         // update product by productId
         app.patch("/products/:productId", async (req, res) => {
             try {
-                const updatedProductData = req.body.updatedData;
+                const updatedProductData = req.body;
+                console.log(req.body);
 
-                const query = {
-                    _id: ObjectId(req.params.productId),
-                };
-                const updateDocument = {
-                    $set: {
-                        ...updatedProductData,
-                    },
-                };
+                // const query = {
+                //     _id: ObjectId(req.params.productId),
+                // };
+                // const updateDocument = {
+                //     $set: {
+                //         ...req.body,
+                //     },
+                // };
 
-                const updatedProduct = await productsCollection.updateOne(
-                    query,
-                    updateDocument
-                );
-                res.status(200).send(updatedProduct);
+                // const updatedProduct = await productsCollection.updateOne(
+                //     query,
+                //     updateDocument
+                // );
+                // res.status(200).send(updatedProduct);
             } catch (error) {
                 res.status(500).send({ message: error.message });
             }
@@ -90,7 +113,6 @@ const run = async () => {
         app.get("/categories", async (req, res) => {
             const query = {};
             const categories = await productsCategoryCollection.find(query).toArray();
-            console.log(categories)
             res.status(200).send(categories);
         });
 
@@ -107,14 +129,12 @@ const run = async () => {
         // update category by categoryId
         app.patch("/categories/:categoryId", async (req, res) => {
             try {
-                const updatedCategoryData = req.body;
-
                 const query = {
                     _id: ObjectId(req.params.categoryId),
                 };
                 const updateDocument = {
                     $set: {
-                        categoryName: updatedCategoryData,
+                        categoryName:req.body.categoryName,
                     },
                 };
 
