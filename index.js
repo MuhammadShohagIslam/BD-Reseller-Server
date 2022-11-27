@@ -1,7 +1,6 @@
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const express = require("express");
 const cors = require("cors");
-const { query } = require("express");
 require("dotenv").config();
 
 const app = express();
@@ -22,16 +21,21 @@ const run = async () => {
     try {
         const usersCollection = client.db("bdSeller").collection("users");
         const productsCollection = client.db("bdSeller").collection("products");
-        const productsCategoryCollection = client.db("bdSeller").collection("categories");
+        const productsCategoryCollection = client
+            .db("bdSeller")
+            .collection("categories");
+        const wishListCollection = client
+            .db("bdSeller")
+            .collection("wishLists");
 
         // get all products
         app.get("/products", async (req, res) => {
             const page = parseInt(req.query.page);
             const size = parseInt(req.query.size);
             let query = {};
-            if(req.query.categoryName !== "undefined" ){
-                console.log(req.query.categoryName, "q")
-                query.productCategory = req.query.categoryName
+            if (req.query.categoryName !== "undefined") {
+                console.log(req.query.categoryName, "q");
+                query.productCategory = req.query.categoryName;
             }
             const productsCursor = productsCollection.find(query);
             const products = await productsCursor
@@ -43,15 +47,13 @@ const run = async () => {
             res.status(200).send({ totalProduct, products });
         });
 
-         // get product by productId
-         app.get("/products/:productId", async (req, res) => {
+        // get product by productId
+        app.get("/products/:productId", async (req, res) => {
             try {
                 const query = {
                     _id: ObjectId(req.params.productId),
                 };
-                const product = await productsCollection.findOne(
-                    query
-                );
+                const product = await productsCollection.findOne(query);
                 res.status(200).send(product);
             } catch (error) {
                 res.status(500).send({ message: error.message });
@@ -71,9 +73,6 @@ const run = async () => {
         // update product by productId
         app.patch("/products/:productId", async (req, res) => {
             try {
-                // const updatedProductData = req.body;
-                // console.log(req.body, "request");
-
                 const query = {
                     _id: ObjectId(req.params.productId),
                 };
@@ -111,17 +110,21 @@ const run = async () => {
         // get all categories
         app.get("/categories", async (req, res) => {
             const query = {};
-            const categories = await productsCategoryCollection.find(query).toArray();
+            const categories = await productsCategoryCollection
+                .find(query)
+                .toArray();
             res.status(200).send(categories);
         });
 
         // create new category
         app.post("/categories", async (req, res) => {
             const categoryData = {
-               ...req.body,
+                ...req.body,
                 productCreated: Date.now(),
             };
-            const product = await productsCategoryCollection.insertOne(categoryData);
+            const product = await productsCategoryCollection.insertOne(
+                categoryData
+            );
             res.status(200).send(product);
         });
 
@@ -133,14 +136,15 @@ const run = async () => {
                 };
                 const updateDocument = {
                     $set: {
-                        categoryName:req.body.categoryName,
+                        categoryName: req.body.categoryName,
                     },
                 };
 
-                const updatedCategory = await productsCategoryCollection.updateOne(
-                    query,
-                    updateDocument
-                );
+                const updatedCategory =
+                    await productsCategoryCollection.updateOne(
+                        query,
+                        updateDocument
+                    );
                 res.status(200).send(updatedCategory);
             } catch (error) {
                 res.status(500).send({ message: error.message });
@@ -153,10 +157,42 @@ const run = async () => {
                 const query = {
                     _id: ObjectId(req.params.categoryId),
                 };
-                const removedCategory = await productsCategoryCollection.deleteOne(
-                    query
-                );
+                const removedCategory =
+                    await productsCategoryCollection.deleteOne(query);
                 res.status(200).json(removedCategory);
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        });
+
+        // get all wish-list products
+        app.get("/wishLists", async (req, res) => {
+            const query = {};
+            const wishLists = await wishListCollection.find(query).toArray();
+            console.log(wishLists);
+            res.status(200).send(wishLists);
+        });
+
+        // create new wish-list product
+        app.post("/products/wishLists", async (req, res) => {
+            const wishListData = {
+                ...req.body,
+                wishListCreated: Date.now(),
+            };
+            const wishList = await wishListCollection.insertOne(wishListData);
+            res.status(200).send(wishList);
+        });
+
+        //delete wish-list product by productId
+        app.delete("/wishLists/:productId", async (req, res) => {
+            try {
+                const query = {
+                    productId: req.params.productId,
+                };
+                const removedWishList =
+                    await wishListCollection.deleteOne(query);
+                res.status(200).json(removedWishList);
+
             } catch (error) {
                 res.status(500).send({ message: error.message });
             }
