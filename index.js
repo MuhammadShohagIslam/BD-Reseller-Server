@@ -33,7 +33,6 @@ const run = async () => {
                 console.log(req.query.categoryName, "q")
                 query.productCategory = req.query.categoryName
             }
-            console.log(req.query, query);
             const productsCursor = productsCollection.find(query);
             const products = await productsCursor
                 .skip(page * size)
@@ -72,23 +71,23 @@ const run = async () => {
         // update product by productId
         app.patch("/products/:productId", async (req, res) => {
             try {
-                const updatedProductData = req.body;
-                console.log(req.body);
+                // const updatedProductData = req.body;
+                // console.log(req.body, "request");
 
-                // const query = {
-                //     _id: ObjectId(req.params.productId),
-                // };
-                // const updateDocument = {
-                //     $set: {
-                //         ...req.body,
-                //     },
-                // };
+                const query = {
+                    _id: ObjectId(req.params.productId),
+                };
+                const updateDocument = {
+                    $set: {
+                        ...req.body,
+                    },
+                };
 
-                // const updatedProduct = await productsCollection.updateOne(
-                //     query,
-                //     updateDocument
-                // );
-                // res.status(200).send(updatedProduct);
+                const updatedProduct = await productsCollection.updateOne(
+                    query,
+                    updateDocument
+                );
+                res.status(200).send(updatedProduct);
             } catch (error) {
                 res.status(500).send({ message: error.message });
             }
