@@ -49,6 +49,9 @@ const run = async () => {
     try {
         const usersCollection = client.db("bdSeller").collection("users");
         const productsCollection = client.db("bdSeller").collection("products");
+        const productBookingCollection = client
+            .db("bdSeller")
+            .collection("productBooking");
         const productsCategoryCollection = client
             .db("bdSeller")
             .collection("categories");
@@ -113,9 +116,7 @@ const run = async () => {
                     const query = {
                         email: req.query.email,
                     };
-                    const removedUser = await usersCollection.deleteOne(
-                        query
-                    );
+                    const removedUser = await usersCollection.deleteOne(query);
                     res.status(200).json(removedUser);
                 }
             } catch (error) {
@@ -196,6 +197,57 @@ const run = async () => {
                     query
                 );
                 res.status(200).json(removedProduct);
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        });
+
+        // create new booking product
+        app.post("/products/bookings", async (req, res) => {
+            try {
+                const bookingProductData = {
+                    ...req.body,
+                    bookingCreated: Date.now(),
+                };
+                const bookingProduct = await productBookingCollection.insertOne(
+                    bookingProductData
+                );
+                res.status(200).send(bookingProduct);
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        });
+
+        // get all booking products
+        app.get("/bookings", async (req, res) => {
+            try {
+                const userName = req.query.userName;
+                const userEmail = req.query.userEmail;
+                if (userName || userEmail) {
+                    const query = {
+                        userName,
+                        userEmail,
+                    };
+                    const bookingProducts = await productBookingCollection
+                        .find(query)
+                        .toArray();
+                    res.status(200).send(bookingProducts);
+                }
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        });
+
+         // delete booking by productId
+         app.delete("/bookings/:productId", async (req, res) => {
+            try {
+                const query = {
+                    productId: req.params.productId,
+                };
+                const removedBookingProduct = await productBookingCollection.deleteOne(
+                    query
+                );
+                res.status(200).json(removedBookingProduct);
             } catch (error) {
                 res.status(500).send({ message: error.message });
             }
