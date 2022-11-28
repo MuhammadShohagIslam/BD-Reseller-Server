@@ -106,8 +106,55 @@ const run = async () => {
                 query.role = req.query.role;
             }
             const users = await usersCollection.find(query).toArray();
-            console.log(users);
             res.status(200).send(users);
+        });
+
+        // get admin user by email
+        app.get("/users/admin/:adminEmail", async (req, res) => {
+            try {
+                const query = {
+                    email: req.params.adminEmail,
+                };
+                const user = await usersCollection.findOne(query);
+
+                res.status(200).send({
+                    isAdmin: user?.role === "admin",
+                });
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        });
+
+        // get seller user by email
+        app.get("/users/seller/:sellerEmail", async (req, res) => {
+            try {
+                const query = {
+                    email: req.params.sellerEmail,
+                };
+                const user = await usersCollection.findOne(query);
+
+                res.status(200).send({
+                    isSeller: user?.role === "seller",
+                });
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        });
+
+        // get buyer user by email
+        app.get("/users/buyers/:buyerEmail", async (req, res) => {
+            try {
+                const query = {
+                    email: req.params.buyerEmail,
+                };
+                const user = await usersCollection.findOne(query);
+
+                res.status(200).send({
+                    isSeller: user?.role === "user",
+                });
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
         });
 
         // remove users by userEmail
@@ -156,6 +203,30 @@ const run = async () => {
             }
         });
 
+        // get all products by isAdvertise
+        app.get("/products/advertise/:isAdvertise", async (req, res) => {
+            try {
+                const isTrue = req.params.isAdvertise === "true";
+                if (isTrue) {
+                    const query = {
+                        isAdvertised: true,
+                    };
+                    console.log(query);
+                    const productsForAdvertise = await productsCollection
+                        .find(query)
+                        .sort({
+                            createdAdvertised: -1,
+                        })
+                        .limit(1)
+                        .toArray();
+                    console.log(productsForAdvertise);
+                    res.status(200).send(productsForAdvertise);
+                }
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        });
+
         // create new products
         app.post("/products", async (req, res) => {
             const productsData = {
@@ -177,11 +248,11 @@ const run = async () => {
                         ...req.body,
                     },
                 };
-
                 const updatedProduct = await productsCollection.updateOne(
                     query,
                     updateDocument
                 );
+                console.log(updatedProduct, "console");
                 res.status(200).send(updatedProduct);
             } catch (error) {
                 res.status(500).send({ message: error.message });
@@ -364,7 +435,6 @@ const run = async () => {
                         .skip(page * size)
                         .limit(size)
                         .toArray();
-                    console.log(blogs)
                     const totalBlogs =
                         await blogsCollection.estimatedDocumentCount();
                     res.status(200).send({ totalBlogs, blogs });
@@ -381,13 +451,10 @@ const run = async () => {
         // get blog by blogId
         app.get("/blogs/:blogId", async (req, res) => {
             try {
-              
                 const query = {
                     _id: ObjectId(req.params.blogId),
                 };
-                console.log(query);
                 const blog = await blogsCollection.findOne(query);
-                console.log(blog);
                 res.status(200).send(blog);
             } catch (error) {
                 res.status(500).send({ message: error.message });
