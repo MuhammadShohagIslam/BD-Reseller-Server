@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
+const stripe = require("stripe")(process.env.STRIPE_SCREAT_KEY);
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -53,6 +54,9 @@ const run = async () => {
         const productBookingCollection = client
             .db("bdSeller")
             .collection("productBooking");
+        const productBookingPaymentCollection = client
+            .db("bdSeller")
+            .collection("productPayment");
         const productsCategoryCollection = client
             .db("bdSeller")
             .collection("categories");
@@ -150,7 +154,7 @@ const run = async () => {
                 const user = await usersCollection.findOne(query);
 
                 res.status(200).send({
-                    isSeller: user?.role === "user",
+                    isBuyer: user?.role === "user",
                 });
             } catch (error) {
                 res.status(500).send({ message: error.message });
@@ -211,7 +215,6 @@ const run = async () => {
                     const query = {
                         isAdvertised: true,
                     };
-                    console.log(query);
                     const productsForAdvertise = await productsCollection
                         .find(query)
                         .sort({
@@ -219,7 +222,6 @@ const run = async () => {
                         })
                         .limit(1)
                         .toArray();
-                    console.log(productsForAdvertise);
                     res.status(200).send(productsForAdvertise);
                 }
             } catch (error) {
@@ -310,6 +312,58 @@ const run = async () => {
             }
         });
 
+        // get orders product by orderId
+        app.get("/bookings/:orderId", async (req, res) => {
+            try {
+                try {
+                    const query = {
+                        _id: ObjectId(req.params.orderId),
+                    };
+                    const orderProduct = await productBookingCollection.findOne(
+                        query
+                    );
+                    res.status(200).json(orderProduct);
+                } catch (error) {
+                    res.status(500).send({ message: error.message });
+                }
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        });
+
+        // product payment
+        app.post("/create-payment-intent", async (req, res) => {
+            const orderProduct = req.body;
+            const price = orderProduct.price;
+            const amount = price * 100;
+            // Create a PaymentIntent with the order amount and currency
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: "usd",
+                payment_method_types: ["card"],
+            });
+
+            res.send({
+                clientSecret: paymentIntent.client_secret,
+            });
+        });
+        // product payment
+        app.post("/payment", async (req, res) => {
+            try {
+                console.log(req.body);
+                const orderPaymentData = {
+                    ...req.body,
+                    paymentCreated: Date.now(),
+                };
+                const payment = await productBookingPaymentCollection.insertOne(
+                    orderPaymentData
+                );
+                res.status(200).send(payment);
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        });
+
         // delete booking by productId
         app.delete("/bookings/:productId", async (req, res) => {
             try {
@@ -334,16 +388,7 @@ const run = async () => {
         });
 
         // create new category
-        app.post("/categories", async (req, res) => {
-            const categoryData = {
-                ...req.body,
-                productCreated: Date.now(),
-            };
-            const product = await productsCategoryCollection.insertOne(
-                categoryData
-            );
-            res.status(200).send(product);
-        });
+        app.post("/categories", async (req, res) => {});
 
         // update category by categoryId
         app.patch("/categories/:categoryId", async (req, res) => {
