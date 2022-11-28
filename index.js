@@ -48,6 +48,7 @@ const verifyJWT = (req, res, next) => {
 const run = async () => {
     try {
         const usersCollection = client.db("bdSeller").collection("users");
+        const blogsCollection = client.db("bdSeller").collection("blogs");
         const productsCollection = client.db("bdSeller").collection("products");
         const productBookingCollection = client
             .db("bdSeller")
@@ -238,15 +239,14 @@ const run = async () => {
             }
         });
 
-         // delete booking by productId
-         app.delete("/bookings/:productId", async (req, res) => {
+        // delete booking by productId
+        app.delete("/bookings/:productId", async (req, res) => {
             try {
                 const query = {
                     productId: req.params.productId,
                 };
-                const removedBookingProduct = await productBookingCollection.deleteOne(
-                    query
-                );
+                const removedBookingProduct =
+                    await productBookingCollection.deleteOne(query);
                 res.status(200).json(removedBookingProduct);
             } catch (error) {
                 res.status(500).send({ message: error.message });
@@ -347,6 +347,48 @@ const run = async () => {
                     query
                 );
                 res.status(200).json(removedWishList);
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        });
+
+        // get all blogs
+        app.get("/blogs", async (req, res) => {
+            try {
+                const page = parseInt(req.query.page);
+                const size = parseInt(req.query.size);
+                if (page || size) {
+                    const query = {};
+                    const blogs = await blogsCollection
+                        .find(query)
+                        .skip(page * size)
+                        .limit(size)
+                        .toArray();
+                    console.log(blogs)
+                    const totalBlogs =
+                        await blogsCollection.estimatedDocumentCount();
+                    res.status(200).send({ totalBlogs, blogs });
+                } else {
+                    const query = {};
+                    const blogs = await blogsCollection.find(query).toArray();
+                    res.status(200).send(blogs);
+                }
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        });
+
+        // get blog by blogId
+        app.get("/blogs/:blogId", async (req, res) => {
+            try {
+              
+                const query = {
+                    _id: ObjectId(req.params.blogId),
+                };
+                console.log(query);
+                const blog = await blogsCollection.findOne(query);
+                console.log(blog);
+                res.status(200).send(blog);
             } catch (error) {
                 res.status(500).send({ message: error.message });
             }
