@@ -89,7 +89,6 @@ const run = async () => {
                 const userData = {
                     ...req.body,
                 };
-                console.log(userData);
                 const newUser = await usersCollection.insertOne(userData);
                 res.status(200).send(newUser);
             } catch (error) {
@@ -113,6 +112,26 @@ const run = async () => {
             res.status(200).send(users);
         });
 
+        // verified seller by admin
+        app.patch("/users/seller/:sellerId", async (req, res) => {
+            try {
+                const query = {
+                    _id: ObjectId(req.params.sellerId),
+                };
+                const updateDocument = {
+                    $set: {
+                        ...req.body,
+                    },
+                };
+                const verifiedSeller = await usersCollection.updateOne(
+                    query,
+                    updateDocument
+                );
+                res.status(200).send(verifiedSeller);
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        });
         // get admin user by email
         app.get("/users/admin/:adminEmail", async (req, res) => {
             try {
@@ -139,7 +158,26 @@ const run = async () => {
 
                 res.status(200).send({
                     isSeller: user?.role === "seller",
+                    sellerId: user?._id,
                 });
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        });
+
+        // get seller user by sellerId
+        app.get("/users/seller", async (req, res) => {
+            try {
+                const sellerId = req.query.sellerId;
+                if (sellerId) {
+                    const query = {
+                        _id: ObjectId(sellerId),
+                    };
+                    const user = await usersCollection.findOne(query);
+                    res.status(200).send({
+                        isVerified: user.isVerified,
+                    });
+                }
             } catch (error) {
                 res.status(500).send({ message: error.message });
             }
@@ -254,7 +292,6 @@ const run = async () => {
                     query,
                     updateDocument
                 );
-                console.log(updatedProduct, "console");
                 res.status(200).send(updatedProduct);
             } catch (error) {
                 res.status(500).send({ message: error.message });
@@ -350,7 +387,6 @@ const run = async () => {
         // product payment
         app.post("/payment", async (req, res) => {
             try {
-                console.log(req.body);
                 const orderPaymentData = {
                     ...req.body,
                     paymentCreated: Date.now(),
@@ -473,8 +509,8 @@ const run = async () => {
             try {
                 const page = parseInt(req.query.page);
                 const size = parseInt(req.query.size);
+                const query = {};
                 if (page || size) {
-                    const query = {};
                     const blogs = await blogsCollection
                         .find(query)
                         .skip(page * size)
@@ -484,7 +520,6 @@ const run = async () => {
                         await blogsCollection.estimatedDocumentCount();
                     res.status(200).send({ totalBlogs, blogs });
                 } else {
-                    const query = {};
                     const blogs = await blogsCollection.find(query).toArray();
                     res.status(200).send(blogs);
                 }
