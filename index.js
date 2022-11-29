@@ -18,6 +18,7 @@ const client = new MongoClient(uri, {
     useUnifiedTopology: true,
     serverApi: ServerApiVersion.v1,
 });
+
 // verify user by JWT
 const verifyJWT = (req, res, next) => {
     try {
@@ -89,6 +90,16 @@ const run = async () => {
                 const userData = {
                     ...req.body,
                 };
+                // check is user is already exits to the database, if it's exits, we do not allow
+                // to insert new user to the database
+                const user = await usersCollection.findOne({
+                    email: req.body.email,
+                });
+                if (user) {
+                    return res
+                        .status(400)
+                        .send({ message: "User Already Exits!" });
+                }
                 const newUser = await usersCollection.insertOne(userData);
                 res.status(200).send(newUser);
             } catch (error) {
@@ -97,7 +108,7 @@ const run = async () => {
         });
 
         // get all users by role
-        app.get("/users", async (req, res) => {
+        app.get("/users", verifyJWT, async (req, res) => {
             let query = {};
             if (req.query.role === "user") {
                 query.role = req.query.role;
@@ -113,7 +124,7 @@ const run = async () => {
         });
 
         // verified seller by admin
-        app.patch("/users/seller/:sellerId", async (req, res) => {
+        app.patch("/users/seller/:sellerId", verifyJWT, async (req, res) => {
             try {
                 const query = {
                     _id: ObjectId(req.params.sellerId),
@@ -133,7 +144,7 @@ const run = async () => {
             }
         });
         // get admin user by email
-        app.get("/users/admin/:adminEmail", async (req, res) => {
+        app.get("/users/admin/:adminEmail", verifyJWT, async (req, res) => {
             try {
                 const query = {
                     email: req.params.adminEmail,
@@ -149,7 +160,7 @@ const run = async () => {
         });
 
         // get seller user by email
-        app.get("/users/seller/:sellerEmail", async (req, res) => {
+        app.get("/users/seller/:sellerEmail", verifyJWT, async (req, res) => {
             try {
                 const query = {
                     email: req.params.sellerEmail,
@@ -184,7 +195,7 @@ const run = async () => {
         });
 
         // get buyer user by email
-        app.get("/users/buyers/:buyerEmail", async (req, res) => {
+        app.get("/users/buyers/:buyerEmail", verifyJWT, async (req, res) => {
             try {
                 const query = {
                     email: req.params.buyerEmail,
@@ -200,7 +211,7 @@ const run = async () => {
         });
 
         // remove users by userEmail
-        app.delete("/users", async (req, res) => {
+        app.delete("/users", verifyJWT, async (req, res) => {
             try {
                 if (req.query.email) {
                     const query = {
@@ -298,7 +309,7 @@ const run = async () => {
         });
 
         // update product by productId
-        app.patch("/products/:productId", async (req, res) => {
+        app.patch("/products/:productId",verifyJWT, async (req, res) => {
             try {
                 const query = {
                     _id: ObjectId(req.params.productId),
@@ -350,10 +361,16 @@ const run = async () => {
         });
 
         // get all booking products
-        app.get("/bookings", async (req, res) => {
+        app.get("/bookings", verifyJWT, async (req, res) => {
             try {
                 const userName = req.query.userName;
                 const userEmail = req.query.userEmail;
+                const decodedEmail = req.decoded.email;
+                if (decodedEmail !== userEmail) {
+                    return res
+                        .status(403)
+                        .send({ message: "Forbidden Access" });
+                }
                 if (userName || userEmail) {
                     const query = {
                         userName,
@@ -370,7 +387,7 @@ const run = async () => {
         });
 
         // get orders product by orderId
-        app.get("/bookings/:orderId", async (req, res) => {
+        app.get("/bookings/:orderId",verifyJWT, async (req, res) => {
             try {
                 try {
                     const query = {
