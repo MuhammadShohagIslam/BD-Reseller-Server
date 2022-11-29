@@ -232,6 +232,26 @@ const run = async () => {
             res.status(200).send({ totalProduct, products });
         });
 
+        // get all top most offer products
+        app.get("/products/topOffer", async (req, res) => {
+            try {
+                const page = parseInt(req.query.page);
+                const size = parseInt(req.query.size);
+                let query = {};
+                const productsCursor = productsCollection.find(query);
+                const products = await productsCursor
+                    .skip(page * size)
+                    .limit(size)
+                    .sort({ saveAmount: -1 })
+                    .toArray();
+                const totalProduct =
+                    await productsCollection.estimatedDocumentCount();
+                res.status(200).send({ totalProduct, products });
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        });
+
         // get product by productId
         app.get("/products/:productId", async (req, res) => {
             try {
