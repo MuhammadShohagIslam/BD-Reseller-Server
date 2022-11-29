@@ -84,6 +84,23 @@ const run = async () => {
             }
         });
 
+        // verify admin
+        const verifyAdmin = async (req, res, next) => {
+            try {
+                const decodedEmail = req.decoded.email;
+                const query = { email: decodedEmail };
+                const user = await usersCollection.findOne(query);
+                if (user?.role !== "admin") {
+                    return res
+                        .status(403)
+                        .json({ message: "Forbidden Access" });
+                }
+                next();
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        };
+
         // create new user
         app.post("/users", async (req, res) => {
             try {
@@ -108,41 +125,50 @@ const run = async () => {
         });
 
         // get all users by role
-        app.get("/users", verifyJWT, async (req, res) => {
-            let query = {};
-            if (req.query.role === "user") {
-                query.role = req.query.role;
-            }
-            if (req.query.role === "admin") {
-                query.role = req.query.role;
-            }
-            if (req.query.role === "seller") {
-                query.role = req.query.role;
-            }
-            const users = await usersCollection.find(query).toArray();
-            res.status(200).send(users);
-        });
-
-        // verified seller by admin
-        app.patch("/users/seller/:sellerId", verifyJWT, async (req, res) => {
+        app.get("/users", verifyJWT, verifyAdmin, async (req, res) => {
             try {
-                const query = {
-                    _id: ObjectId(req.params.sellerId),
-                };
-                const updateDocument = {
-                    $set: {
-                        ...req.body,
-                    },
-                };
-                const verifiedSeller = await usersCollection.updateOne(
-                    query,
-                    updateDocument
-                );
-                res.status(200).send(verifiedSeller);
+                let query = {};
+                if (req.query.role === "user") {
+                    query.role = req.query.role;
+                }
+                if (req.query.role === "admin") {
+                    query.role = req.query.role;
+                }
+                if (req.query.role === "seller") {
+                    query.role = req.query.role;
+                }
+                const users = await usersCollection.find(query).toArray();
+                res.status(200).send(users);
             } catch (error) {
                 res.status(500).send({ message: error.message });
             }
         });
+
+        // verified seller by admin
+        app.patch(
+            "/users/seller/:sellerId",
+            verifyJWT,
+            verifyAdmin,
+            async (req, res) => {
+                try {
+                    const query = {
+                        _id: ObjectId(req.params.sellerId),
+                    };
+                    const updateDocument = {
+                        $set: {
+                            ...req.body,
+                        },
+                    };
+                    const verifiedSeller = await usersCollection.updateOne(
+                        query,
+                        updateDocument
+                    );
+                    res.status(200).send(verifiedSeller);
+                } catch (error) {
+                    res.status(500).send({ message: error.message });
+                }
+            }
+        );
         // get admin user by email
         app.get("/users/admin/:adminEmail", verifyJWT, async (req, res) => {
             try {
@@ -211,7 +237,7 @@ const run = async () => {
         });
 
         // remove users by userEmail
-        app.delete("/users", verifyJWT, async (req, res) => {
+        app.delete("/users", verifyJWT, verifyAdmin, async (req, res) => {
             try {
                 if (req.query.email) {
                     const query = {
@@ -309,7 +335,7 @@ const run = async () => {
         });
 
         // update product by productId
-        app.patch("/products/:productId",verifyJWT, async (req, res) => {
+        app.patch("/products/:productId", verifyJWT, async (req, res) => {
             try {
                 const query = {
                     _id: ObjectId(req.params.productId),
@@ -387,7 +413,7 @@ const run = async () => {
         });
 
         // get orders product by orderId
-        app.get("/bookings/:orderId",verifyJWT, async (req, res) => {
+        app.get("/bookings/:orderId", verifyJWT, async (req, res) => {
             try {
                 try {
                     const query = {
