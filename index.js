@@ -125,7 +125,7 @@ const run = async () => {
         });
 
         // get all users by role
-        app.get("/users", verifyJWT, verifyAdmin, async (req, res) => {
+        app.get("/users", verifyJWT, async (req, res) => {
             try {
                 let query = {};
                 if (req.query.role === "user") {
@@ -170,7 +170,7 @@ const run = async () => {
             }
         );
         // get admin user by email
-        app.get("/users/admin/:adminEmail", verifyJWT, async (req, res) => {
+        app.get("/users/admin/:adminEmail", async (req, res) => {
             try {
                 const query = {
                     email: req.params.adminEmail,
@@ -186,7 +186,7 @@ const run = async () => {
         });
 
         // get seller user by email
-        app.get("/users/seller/:sellerEmail", verifyJWT, async (req, res) => {
+        app.get("/users/seller/:sellerEmail", async (req, res) => {
             try {
                 const query = {
                     email: req.params.sellerEmail,
@@ -221,7 +221,7 @@ const run = async () => {
         });
 
         // get buyer user by email
-        app.get("/users/buyers/:buyerEmail", verifyJWT, async (req, res) => {
+        app.get("/users/buyers/:buyerEmail", async (req, res) => {
             try {
                 const query = {
                     email: req.params.buyerEmail,
@@ -419,10 +419,34 @@ const run = async () => {
                     const query = {
                         _id: ObjectId(req.params.orderId),
                     };
-                    const orderProduct = await productBookingCollection.findOne(
+                    const orderProduct = await productsCollection.findOne(
                         query
                     );
                     res.status(200).json(orderProduct);
+                } catch (error) {
+                    res.status(500).send({ message: error.message });
+                }
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        });
+        // get orders product by orderId
+        app.patch("/bookings/:productId", verifyJWT, async (req, res) => {
+            try {
+                try {
+                    const query = {
+                        productId: req.params.productId,
+                    };
+                    const updateDocument = {
+                        $set: {
+                            ...req.body,
+                        },
+                    };
+                    const updatedBookingProduct = await productBookingCollection.updateOne(
+                        query,
+                        updateDocument
+                    );
+                    res.status(200).json(updatedBookingProduct);
                 } catch (error) {
                     res.status(500).send({ message: error.message });
                 }
@@ -527,18 +551,22 @@ const run = async () => {
         });
 
         // get all wish-list products
-        app.get("/wishLists", async (req, res) => {
-            const userName = req.query.userName;
-            const userEmail = req.query.userEmail;
-            if (userName || userEmail) {
-                const query = {
-                    userName,
-                    userEmail,
-                };
-                const wishLists = await wishListCollection
-                    .find(query)
-                    .toArray();
-                res.status(200).send(wishLists);
+        app.get("/wishLists", verifyJWT, async (req, res) => {
+            try {
+                const userName = req.query.userName;
+                const userEmail = req.query.userEmail;
+                if (userName || userEmail) {
+                    const query = {
+                        userName,
+                        userEmail,
+                    };
+                    const wishLists = await wishListCollection
+                        .find(query)
+                        .toArray();
+                    res.status(200).send(wishLists);
+                }
+            } catch (error) {
+                res.status(500).send({ message: error.message });
             }
         });
 
