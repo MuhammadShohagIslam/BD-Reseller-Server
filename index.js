@@ -255,7 +255,9 @@ const run = async () => {
         app.get("/products", async (req, res) => {
             const page = parseInt(req.query.page);
             const size = parseInt(req.query.size);
-            let query = {};
+            let query = {
+                sold: false,
+            };
             if (req.query.categoryName !== "undefined") {
                 query.productCategory = req.query.categoryName;
             }
@@ -269,12 +271,30 @@ const run = async () => {
             res.status(200).send({ totalProduct, products });
         });
 
+        // get all seller products
+        app.get("/seller/products", async (req, res) => {
+            const page = parseInt(req.query.page);
+            const size = parseInt(req.query.size);
+            let query = {};
+            const productsCursor = productsCollection.find(query);
+            const products = await productsCursor
+                .skip(page * size)
+                .limit(size)
+                .sort({ productCreated: -1 })
+                .toArray();
+            const totalProduct =
+                await productsCollection.estimatedDocumentCount();
+            res.status(200).send({ totalProduct, products });
+        });
+
         // get all top most offer products
         app.get("/products/topOffer", async (req, res) => {
             try {
                 const page = parseInt(req.query.page);
                 const size = parseInt(req.query.size);
-                let query = {};
+                let query = {
+                    sold: false,
+                };
                 const productsCursor = productsCollection.find(query);
                 const products = await productsCursor
                     .skip(page * size)
@@ -309,6 +329,7 @@ const run = async () => {
                 if (isTrue) {
                     const query = {
                         isAdvertised: true,
+                        sold: false,
                     };
                     const productsForAdvertise = await productsCollection
                         .find(query)
@@ -442,10 +463,11 @@ const run = async () => {
                             ...req.body,
                         },
                     };
-                    const updatedBookingProduct = await productBookingCollection.updateOne(
-                        query,
-                        updateDocument
-                    );
+                    const updatedBookingProduct =
+                        await productBookingCollection.updateOne(
+                            query,
+                            updateDocument
+                        );
                     res.status(200).json(updatedBookingProduct);
                 } catch (error) {
                     res.status(500).send({ message: error.message });
@@ -511,7 +533,20 @@ const run = async () => {
         });
 
         // create new category
-        app.post("/categories", async (req, res) => {});
+        app.post("/categories", async (req, res) => {
+            try {
+                const categoryData = {
+                    ...req.body,
+                    categoryCreated: Date.now(),
+                };
+                const category = await productsCategoryCollection.insertOne(
+                    categoryData
+                );
+                res.status(200).send(category);
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        });
 
         // update category by categoryId
         app.patch("/categories/:categoryId", async (req, res) => {
