@@ -125,7 +125,7 @@ const run = async () => {
         });
 
         // get all users by role
-        app.get("/users", verifyJWT, async (req, res) => {
+        app.get("/users", async (req, res) => {
             try {
                 let query = {};
                 if (req.query.role === "user") {
@@ -145,20 +145,22 @@ const run = async () => {
         });
 
         // verified seller by admin
-        app.patch(
-            "/users/seller/:sellerId",
+        app.put(
+            "/seller/:sellerEmail",
             verifyJWT,
             verifyAdmin,
             async (req, res) => {
                 try {
+                    console.log(req.params.sellerEmail)
                     const query = {
-                        _id: ObjectId(req.params.sellerId),
+                        email: req.params.sellerEmail,
                     };
                     const updateDocument = {
                         $set: {
                             ...req.body,
                         },
                     };
+                    console.log(updateDocument)
                     const verifiedSeller = await usersCollection.updateOne(
                         query,
                         updateDocument
@@ -408,16 +410,10 @@ const run = async () => {
         });
 
         // get all booking products
-        app.get("/bookings", verifyJWT, async (req, res) => {
+        app.get("/bookings", async (req, res) => {
             try {
                 const userName = req.query.userName;
                 const userEmail = req.query.userEmail;
-                const decodedEmail = req.decoded.email;
-                if (decodedEmail !== userEmail) {
-                    return res
-                        .status(403)
-                        .send({ message: "Forbidden Access" });
-                }
                 if (userName || userEmail) {
                     const query = {
                         userName,
@@ -480,7 +476,7 @@ const run = async () => {
         // product payment
         app.post("/create-payment-intent", async (req, res) => {
             const orderProduct = req.body;
-            const price = orderProduct.price;
+            const price = parseInt(orderProduct?.price);
             const amount = price * 100;
             // Create a PaymentIntent with the order amount and currency
             const paymentIntent = await stripe.paymentIntents.create({
@@ -586,7 +582,7 @@ const run = async () => {
         });
 
         // get all wish-list products
-        app.get("/wishLists", verifyJWT, async (req, res) => {
+        app.get("/wishLists", async (req, res) => {
             try {
                 const userName = req.query.userName;
                 const userEmail = req.query.userEmail;
