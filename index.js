@@ -151,7 +151,6 @@ const run = async () => {
             verifyAdmin,
             async (req, res) => {
                 try {
-                    console.log(req.params.sellerEmail)
                     const query = {
                         email: req.params.sellerEmail,
                     };
@@ -160,7 +159,7 @@ const run = async () => {
                             ...req.body,
                         },
                     };
-                    console.log(updateDocument)
+
                     const verifiedSeller = await usersCollection.updateOne(
                         query,
                         updateDocument
@@ -255,38 +254,51 @@ const run = async () => {
 
         // get all products
         app.get("/products", async (req, res) => {
-            const page = parseInt(req.query.page);
-            const size = parseInt(req.query.size);
-            let query = {
-                sold: false,
-            };
-            if (req.query.categoryName !== "undefined") {
-                query.productCategory = req.query.categoryName;
+            try {
+                const page = parseInt(req.query.page);
+                const size = parseInt(req.query.size);
+                let query = {
+                    sold: false,
+                };
+                if (req.query.categoryName !== "undefined") {
+                    query.productCategory = req.query.categoryName;
+                }
+                const productsCursor = productsCollection.find(query);
+                const products = await productsCursor
+                    .skip(page * size)
+                    .limit(size)
+                    .toArray();
+                const totalProduct =
+                    await productsCollection.estimatedDocumentCount();
+                res.status(200).send({ totalProduct, products });
+            } catch (error) {
+                res.status(500).send({ message: error.message });
             }
-            const productsCursor = productsCollection.find(query);
-            const products = await productsCursor
-                .skip(page * size)
-                .limit(size)
-                .toArray();
-            const totalProduct =
-                await productsCollection.estimatedDocumentCount();
-            res.status(200).send({ totalProduct, products });
         });
 
         // get all seller products
         app.get("/seller/products", async (req, res) => {
-            const page = parseInt(req.query.page);
-            const size = parseInt(req.query.size);
-            let query = {};
-            const productsCursor = productsCollection.find(query);
-            const products = await productsCursor
-                .skip(page * size)
-                .limit(size)
-                .sort({ productCreated: -1 })
-                .toArray();
-            const totalProduct =
-                await productsCollection.estimatedDocumentCount();
-            res.status(200).send({ totalProduct, products });
+            try {
+                const page = parseInt(req.query.page);
+                const size = parseInt(req.query.size);
+                const sellerEmail = req.query.sellerEmail;
+                if (sellerEmail) {
+                    let query = {
+                        sellerEmail: sellerEmail,
+                    };
+                    const productsCursor = productsCollection.find(query);
+                    const products = await productsCursor
+                        .skip(page * size)
+                        .limit(size)
+                        .sort({ productCreated: -1 })
+                        .toArray();
+                    const totalProduct =
+                        await productsCollection.estimatedDocumentCount();
+                    res.status(200).send({ totalProduct, products });
+                }
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
         });
 
         // get all top most offer products
@@ -349,12 +361,18 @@ const run = async () => {
 
         // create new products
         app.post("/products", async (req, res) => {
-            const productsData = {
-                ...req.body,
-                productCreated: Date.now(),
-            };
-            const product = await productsCollection.insertOne(productsData);
-            res.status(200).send(product);
+            try {
+                const productsData = {
+                    ...req.body,
+                    productCreated: Date.now(),
+                };
+                const product = await productsCollection.insertOne(
+                    productsData
+                );
+                res.status(200).send(product);
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
         });
 
         // update product by productId
@@ -388,6 +406,19 @@ const run = async () => {
                     query
                 );
                 res.status(200).json(removedProduct);
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
+        });
+        // delete product by sellerEmail
+        app.delete("/products/sellerProduct/:sellerEmail", async (req, res) => {
+            try {
+                const query = {
+                    sellerEmail: req.params.sellerEmail,
+                };
+                const removedSellerAllProducts =
+                    await productsCollection.deleteMany(query);
+                res.status(200).json(removedSellerAllProducts);
             } catch (error) {
                 res.status(500).send({ message: error.message });
             }
@@ -430,7 +461,7 @@ const run = async () => {
         });
 
         // get orders product by orderId
-        app.get("/bookings/:orderId", verifyJWT, async (req, res) => {
+        app.get("/bookings/:orderId", async (req, res) => {
             try {
                 try {
                     const query = {
@@ -447,27 +478,24 @@ const run = async () => {
                 res.status(500).send({ message: error.message });
             }
         });
-        // get orders product by orderId
-        app.patch("/bookings/:productId", verifyJWT, async (req, res) => {
+
+        // update booking product by productId
+        app.patch("/bookings/:productId", async (req, res) => {
             try {
-                try {
-                    const query = {
-                        productId: req.params.productId,
-                    };
-                    const updateDocument = {
-                        $set: {
-                            ...req.body,
-                        },
-                    };
-                    const updatedBookingProduct =
-                        await productBookingCollection.updateOne(
-                            query,
-                            updateDocument
-                        );
-                    res.status(200).json(updatedBookingProduct);
-                } catch (error) {
-                    res.status(500).send({ message: error.message });
-                }
+                const query = {
+                    productId: req.params.productId,
+                };
+                const updateDocument = {
+                    $set: {
+                        ...req.body,
+                    },
+                };
+                const updatedBookingProduct =
+                    await productBookingCollection.updateOne(
+                        query,
+                        updateDocument
+                    );
+                res.status(200).json(updatedBookingProduct);
             } catch (error) {
                 res.status(500).send({ message: error.message });
             }
@@ -475,19 +503,24 @@ const run = async () => {
 
         // product payment
         app.post("/create-payment-intent", async (req, res) => {
-            const orderProduct = req.body;
-            const price = parseInt(orderProduct?.price);
-            const amount = price * 100;
-            // Create a PaymentIntent with the order amount and currency
-            const paymentIntent = await stripe.paymentIntents.create({
-                amount: amount,
-                currency: "usd",
-                payment_method_types: ["card"],
-            });
+            try {
+                const orderProduct = req.body;
+                const price = parseInt(orderProduct?.price);
 
-            res.send({
-                clientSecret: paymentIntent.client_secret,
-            });
+                const amount = price * 100;
+                // Create a PaymentIntent with the order amount and currency
+                const paymentIntent = await stripe.paymentIntents.create({
+                    amount: amount,
+                    currency: "usd",
+                    payment_method_types: ["card"],
+                });
+
+                res.send({
+                    clientSecret: paymentIntent.client_secret,
+                });
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
         });
         // product payment
         app.post("/payment", async (req, res) => {
@@ -521,11 +554,15 @@ const run = async () => {
 
         // get all categories
         app.get("/categories", async (req, res) => {
-            const query = {};
-            const categories = await productsCategoryCollection
-                .find(query)
-                .toArray();
-            res.status(200).send(categories);
+            try {
+                const query = {};
+                const categories = await productsCategoryCollection
+                    .find(query)
+                    .toArray();
+                res.status(200).send(categories);
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
         });
 
         // create new category
@@ -603,12 +640,18 @@ const run = async () => {
 
         // create new wish-list product
         app.post("/products/wishLists", async (req, res) => {
-            const wishListData = {
-                ...req.body,
-                wishListCreated: Date.now(),
-            };
-            const wishList = await wishListCollection.insertOne(wishListData);
-            res.status(200).send(wishList);
+            try {
+                const wishListData = {
+                    ...req.body,
+                    wishListCreated: Date.now(),
+                };
+                const wishList = await wishListCollection.insertOne(
+                    wishListData
+                );
+                res.status(200).send(wishList);
+            } catch (error) {
+                res.status(500).send({ message: error.message });
+            }
         });
 
         //delete wish-list product by productId
