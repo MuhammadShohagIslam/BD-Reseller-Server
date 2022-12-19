@@ -255,7 +255,7 @@ const run = async () => {
         // get all products
         app.get("/products", async (req, res) => {
             try {
-                const page = parseInt(req.query.page);
+                const page = parseInt(req.query.page) || 1;
                 const size = parseInt(req.query.size);
                 let query = {
                     sold: false,
@@ -263,13 +263,22 @@ const run = async () => {
                 if (req.query.categoryName !== "undefined") {
                     query.productCategory = req.query.categoryName;
                 }
+                
                 const productsCursor = productsCollection.find(query);
                 const products = await productsCursor
-                    .skip(page * size)
+                    .skip((page - 1) * size)
                     .limit(size)
                     .toArray();
-                const totalProduct =
-                    await productsCollection.estimatedDocumentCount();
+                let totalProduct;
+                if (req.query.categoryName !== "undefined") {
+                    totalProduct = (
+                        await productsCollection.find(query).toArray()
+                    ).length;
+                } else {
+                    totalProduct =
+                        await productsCollection.estimatedDocumentCount();
+                }
+
                 res.status(200).send({ totalProduct, products });
             } catch (error) {
                 res.status(500).send({ message: error.message });
@@ -279,7 +288,7 @@ const run = async () => {
         // get all seller products
         app.get("/seller/products", async (req, res) => {
             try {
-                const page = parseInt(req.query.page);
+                const page = parseInt(req.query.page) || 1;
                 const size = parseInt(req.query.size);
                 const sellerEmail = req.query.sellerEmail;
                 if (sellerEmail) {
@@ -288,7 +297,7 @@ const run = async () => {
                     };
                     const productsCursor = productsCollection.find(query);
                     const products = await productsCursor
-                        .skip(page * size)
+                        .skip((page - 1) * size)
                         .limit(size)
                         .sort({ productCreated: -1 })
                         .toArray();
@@ -304,14 +313,14 @@ const run = async () => {
         // get all top most offer products
         app.get("/products/topOffer", async (req, res) => {
             try {
-                const page = parseInt(req.query.page);
+                const page = parseInt(req.query.page) || 1;
                 const size = parseInt(req.query.size);
                 let query = {
                     sold: false,
                 };
                 const productsCursor = productsCollection.find(query);
                 const products = await productsCursor
-                    .skip(page * size)
+                    .skip((page - 1) * size)
                     .limit(size)
                     .sort({ saveAmount: -1 })
                     .toArray();
@@ -672,13 +681,13 @@ const run = async () => {
         // get all blogs
         app.get("/blogs", async (req, res) => {
             try {
-                const page = parseInt(req.query.page);
+                const page = parseInt(req.query.page) || 1;
                 const size = parseInt(req.query.size);
                 const query = {};
-                if (page || size) {
+                if (page && size) {
                     const blogs = await blogsCollection
                         .find(query)
-                        .skip(page * size)
+                        .skip(( page - 1) * size)
                         .limit(size)
                         .toArray();
                     const totalBlogs =
